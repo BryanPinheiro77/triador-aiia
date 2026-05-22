@@ -7,8 +7,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/BryanPinheiro77/triador-aiia/internal/database"
-
 	"github.com/BryanPinheiro77/triador-aiia/internal/handler"
+	"github.com/BryanPinheiro77/triador-aiia/internal/llm"
 	"github.com/BryanPinheiro77/triador-aiia/internal/repository"
 	"github.com/BryanPinheiro77/triador-aiia/internal/service"
 )
@@ -23,10 +23,13 @@ func main() {
 
 	router := gin.Default()
 
+	llmClient := llm.NewOpenAIClient()
+
 	analysisRepository := repository.NewAnalysisRepository()
 
-		analysisService := service.NewAnalysisService(
+	analysisService := service.NewAnalysisService(
 		analysisRepository,
+		llmClient,
 	)
 
 	analysisHandler := handler.NewAnalysisHandler(

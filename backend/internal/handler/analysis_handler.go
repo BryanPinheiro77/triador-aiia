@@ -32,7 +32,7 @@ func (h *AnalysisHandler) Create(c *gin.Context) {
 		return
 	}
 
-	response, err := h.service.Create(request)
+	response, err := h.service.Create(c.Request.Context(), request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
