@@ -1,46 +1,69 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/BryanPinheiro77/triador-aiia/internal/dto"
+	"github.com/BryanPinheiro77/triador-aiia/internal/llm"
 	"github.com/BryanPinheiro77/triador-aiia/internal/model"
 	"github.com/BryanPinheiro77/triador-aiia/internal/repository"
 )
 
 type AnalysisService struct {
 	repository *repository.AnalysisRepository
+	llmClient  *llm.OpenAIClient
 }
 
 func NewAnalysisService(
 	repository *repository.AnalysisRepository,
+	llmClient *llm.OpenAIClient,
 ) *AnalysisService {
 	return &AnalysisService{
 		repository: repository,
+		llmClient:  llmClient,
 	}
 }
 
 func (s *AnalysisService) Create(
+	ctx context.Context,
 	request dto.AnalysisRequest,
 ) (*dto.AnalysisResponse, error) {
+	prompt := s.buildPrompt(request)
 
-	mockSkills := []string{
-		"Go",
-		"Next.js",
-		"PostgreSQL",
+	rawResponse, err := s.llmClient.Analyze(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze resume with LLM: %w", err)
 	}
 
-	skillsJSON, err := json.Marshal(mockSkills)
+	var llmResponse dto.LLMAnalysisResponse
+
+	cleanResponse := s.sanitizeLLMResponse(rawResponse)
+
+	err = json.Unmarshal([]byte(cleanResponse), &llmResponse)
+	if err != nil {
+		return nil, fmt.Errorf("invalid LLM JSON response: %w", err)
+	}
+
+	err = s.validateLLMResponse(llmResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	skillsJSON, err := json.Marshal(llmResponse.Skills)
 	if err != nil {
 		return nil, err
 	}
 
 	analysis := model.Analysis{
-		CandidateName: "Mock Candidate",
-		Skills: string(skillsJSON),
-		YearsExperience: 2,
-		FitScore: 85,
-		Summary: "Strong backend profile with good alignment.",
+		CandidateName:   llmResponse.CandidateName,
+		Skills:          string(skillsJSON),
+		YearsExperience: llmResponse.YearsExperience,
+		FitScore:        llmResponse.FitScore,
+		Summary:         llmResponse.Summary,
 	}
 
 	err = s.repository.Save(&analysis)
@@ -49,12 +72,12 @@ func (s *AnalysisService) Create(
 	}
 
 	response := dto.AnalysisResponse{
-		ID: analysis.ID,
-		CandidateName: analysis.CandidateName,
-		Skills: mockSkills,
+		ID:              analysis.ID,
+		CandidateName:   analysis.CandidateName,
+		Skills:          llmResponse.Skills,
 		YearsExperience: analysis.YearsExperience,
-		FitScore: analysis.FitScore,
-		Summary: analysis.Summary,
+		FitScore:        analysis.FitScore,
+		Summary:         analysis.Summary,
 	}
 
 	return &response, nil
@@ -87,4 +110,67 @@ func (s *AnalysisService) FindAll() ([]dto.AnalysisResponse, error) {
 	}
 
 	return responses, nil
+}
+
+func (s *AnalysisService) buildPrompt(request dto.AnalysisRequest) string {
+	return fmt.Sprintf(`
+Analyze the resume according to the job description.
+
+Return only valid JSON, without markdown, without explanations and without code block.
+
+Expected JSON format:
+{
+  "candidate_name": "string",
+  "skills": ["string"],
+  "years_experience": 0,
+  "fit_score": 0,
+  "summary": "string"
+}
+
+Rules:
+- fit_score must be between 0 and 100.
+- years_experience must be an approximate integer.
+- summary must be short and justify the score.
+- If the candidate name is not clear, use "Unknown candidate".
+
+Resume:
+%s
+
+Job description:
+%s
+`, request.Resume, request.JobDescription)
+}
+
+func (s *AnalysisService) validateLLMResponse(response dto.LLMAnalysisResponse) error {
+	if response.CandidateName == "" {
+		return errors.New("LLM response missing candidate_name")
+	}
+
+	if len(response.Skills) == 0 {
+		return errors.New("LLM response missing skills")
+	}
+
+	if response.YearsExperience < 0 {
+		return errors.New("LLM response has invalid years_experience")
+	}
+
+	if response.FitScore < 0 || response.FitScore > 100 {
+		return errors.New("LLM response has invalid fit_score")
+	}
+
+	if response.Summary == "" {
+		return errors.New("LLM response missing summary")
+	}
+
+	return nil
+}
+
+func (s *AnalysisService) sanitizeLLMResponse(rawResponse string) string {
+	cleaned := strings.TrimSpace(rawResponse)
+
+	cleaned = strings.TrimPrefix(cleaned, "```json")
+	cleaned = strings.TrimPrefix(cleaned, "```")
+	cleaned = strings.TrimSuffix(cleaned, "```")
+
+	return strings.TrimSpace(cleaned)
 }
