@@ -11,6 +11,7 @@ import (
 	"github.com/BryanPinheiro77/triador-aiia/internal/llm"
 	"github.com/BryanPinheiro77/triador-aiia/internal/repository"
 	"github.com/BryanPinheiro77/triador-aiia/internal/service"
+	"github.com/gin-contrib/cors"
 )
 
 func main() {
@@ -22,6 +23,22 @@ func main() {
 	database.Connect()
 
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+			"OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Accept",
+		},
+	}))
 
 	llmClient := llm.NewOpenAIClient()
 
