@@ -36,7 +36,7 @@ func (s *AnalysisService) Create(
 
 	rawResponse, err := s.llmClient.Analyze(ctx, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to analyze resume with LLM: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrLLMProviderFailed, err)
 	}
 
 	var llmResponse dto.LLMAnalysisResponse
@@ -45,17 +45,17 @@ func (s *AnalysisService) Create(
 
 	err = json.Unmarshal([]byte(cleanResponse), &llmResponse)
 	if err != nil {
-		return nil, fmt.Errorf("invalid LLM JSON response: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrInvalidLLMOutput, err)
 	}
 
 	err = s.validateLLMResponse(llmResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrInvalidLLMOutput, err)
 	}
 
 	skillsJSON, err := json.Marshal(llmResponse.Skills)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrInvalidLLMOutput, err)
 	}
 
 	analysis := model.Analysis{

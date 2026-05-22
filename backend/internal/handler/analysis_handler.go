@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -32,9 +34,26 @@ func (h *AnalysisHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(request.Resume) == "" || strings.TrimSpace(request.JobDescription) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "resume and job_description are required",
+		})
+		return
+	}
+
 	response, err := h.service.Create(c.Request.Context(), request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+		status := http.StatusInternalServerError
+
+		if errors.Is(err, service.ErrInvalidLLMOutput) {
+			status = http.StatusUnprocessableEntity
+		}
+
+		if errors.Is(err, service.ErrLLMProviderFailed) {
+			status = http.StatusBadGateway
+		}
+
+		c.JSON(status, gin.H{
 			"error": err.Error(),
 		})
 		return
