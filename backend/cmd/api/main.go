@@ -8,6 +8,9 @@ import (
 
 	"github.com/BryanPinheiro77/triador-aiia/internal/database"
 
+	"github.com/BryanPinheiro77/triador-aiia/internal/handler"
+	"github.com/BryanPinheiro77/triador-aiia/internal/repository"
+	"github.com/BryanPinheiro77/triador-aiia/internal/service"
 )
 
 func main() {
@@ -19,6 +22,19 @@ func main() {
 	database.Connect()
 
 	router := gin.Default()
+
+	analysisRepository := repository.NewAnalysisRepository()
+
+		analysisService := service.NewAnalysisService(
+		analysisRepository,
+	)
+
+	analysisHandler := handler.NewAnalysisHandler(
+		analysisService,
+	)
+
+	router.POST("/analyses", analysisHandler.Create)
+	router.GET("/analyses", analysisHandler.FindAll)
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
