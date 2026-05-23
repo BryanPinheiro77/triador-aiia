@@ -284,9 +284,14 @@ export default function Home() {
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {history.length === 0 && !historyLoading ? (
-              <p className="text-sm text-slate-400">
-                Nenhuma análise encontrada.
-              </p>
+              <div className="col-span-full rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center">
+                <p className="text-sm font-medium text-slate-200">
+                  Nenhuma análise encontrada
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Envie um currículo e uma descrição de vaga para criar a primeira análise.
+                </p>
+              </div>
             ) : (
               history.map((analysis) => (
                 <article
