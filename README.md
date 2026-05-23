@@ -15,7 +15,8 @@ O projeto recebe o texto de um currículo e uma descrição de vaga, envia os da
 - Geração de resumo explicando a pontuação
 - Persistência das análises em banco relacional
 - Consulta de histórico
-- Interface web funcional com estado de carregamento
+- Interface web funcional com loading visual
+- Deploy funcional
 
 ---
 
@@ -35,6 +36,11 @@ O projeto recebe o texto de um currículo e uma descrição de vaga, envia os da
 - Next.js
 - TypeScript
 - Tailwind CSS
+
+### Infraestrutura
+
+- Railway
+- Vercel
 
 ---
 
@@ -70,7 +76,9 @@ Prompt
     ↓
 OpenAI
     ↓
-Validação da resposta
+Sanitização
+    ↓
+Validação
     ↓
 Repository
     ↓
@@ -97,130 +105,134 @@ O GORM foi utilizado para reduzir boilerplate de persistência, facilitar a cria
 
 ### Modelagem de skills
 
-As skills são armazenadas como JSON serializado em uma coluna de texto. Essa decisão reduz complexidade relacional para o escopo atual, já que o sistema não exige filtros ou relatórios por skill. Em uma evolução do produto, as skills poderiam ser normalizadas em uma tabela própria.
+As skills são armazenadas como JSON serializado em uma coluna de texto. Essa decisão reduz complexidade relacional para o escopo atual, já que o sistema não exige filtros ou relatórios por skill.
+
+Trade-off:
+
+**Vantagem**
+- Menor complexidade
+
+**Desvantagem**
+- Dificulta consultas futuras por skill específica
+
+Em uma evolução do projeto as skills poderiam ser normalizadas em tabela própria.
 
 ### Integração com LLM
 
 A integração com OpenAI foi isolada na camada `llm`, evitando acoplamento direto do service com detalhes do SDK externo. O backend não confia cegamente na resposta do modelo: a saída é convertida para struct, sanitizada e validada antes da persistência.
 
+Fluxo aplicado:
+
+- Prompt estruturado
+- Sanitização
+- Conversão para struct
+- Validação
+- Persistência
+
 ---
 
 ## Pré-requisitos
 
-Antes de executar o projeto, é necessário ter instalado:
+Antes de executar:
 
 - Go
 - Node.js
 - npm
 - Docker Desktop
-- Conta/chave de API da OpenAI
+- Chave OpenAI
 
 ---
 
-## Como executar localmente
+# Como executar localmente
 
-### 1. Clonar o repositório
+## Clonar repositório
 
 ```bash
 git clone https://github.com/BryanPinheiro77/triador-aiia.git
+
 cd triador-aiia
 ```
 
 ---
 
-## Backend
+# Backend
 
-### 2. Entrar na pasta do backend
+Entrar na pasta:
 
 ```bash
 cd backend
 ```
 
-### 3. Subir o PostgreSQL com Docker Compose
-
-Como o arquivo `docker-compose.yml` está dentro da pasta `backend`, execute:
+Subir banco:
 
 ```bash
 docker compose up -d
 ```
 
-Esse comando sobe um container PostgreSQL local para a aplicação.
-
-### 4. Criar o arquivo `.env`
-
-Crie um arquivo chamado `.env` dentro da pasta `backend`.
-
-Exemplo:
+Criar `.env`
 
 ```env
 DATABASE_URL=host=localhost user=postgres password=postgres dbname=triador port=5432 sslmode=disable
 OPENAI_API_KEY=sua_chave_openai
 OPENAI_MODEL=gpt-4o-mini
+FRONTEND_URL=http://localhost:3000
 ```
 
-Também existe um arquivo `.env.example` com as variáveis necessárias, sem valores sensíveis.
-
-### 5. Instalar dependências do backend
+Instalar dependências:
 
 ```bash
 go mod tidy
 ```
 
-### 6. Executar o backend
+Executar:
 
 ```bash
 go run cmd/api/main.go
 ```
 
-A API ficará disponível em:
+API:
 
 ```txt
 http://localhost:8080
 ```
 
-Endpoint de teste:
+Health check:
 
 ```txt
-GET http://localhost:8080/health
+GET /health
 ```
 
 ---
 
-## Frontend
+# Frontend
 
-Abra outro terminal a partir da raiz do projeto.
-
-### 7. Entrar na pasta do frontend
+Abrir novo terminal:
 
 ```bash
 cd frontend
 ```
 
-### 8. Criar o arquivo `.env.local`
+Criar:
 
-Crie um arquivo chamado `.env.local` dentro da pasta `frontend`.
-
-Exemplo:
+`.env.local`
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-Também existe um arquivo `.env.example` com a variável necessária.
-
-### 9. Instalar dependências do frontend
+Instalar:
 
 ```bash
 npm install
 ```
 
-### 10. Executar o frontend
+Executar:
 
 ```bash
 npm run dev
 ```
 
-A aplicação ficará disponível em:
+Aplicação:
 
 ```txt
 http://localhost:3000
@@ -228,93 +240,92 @@ http://localhost:3000
 
 ---
 
-## Endpoints principais
+## Deploy
 
-### Criar análise
+Projeto publicado utilizando:
 
-```txt
-POST /analyses
-```
+- Frontend: Vercel
+- Backend: Railway
+- Banco: PostgreSQL no Railway
 
-Body:
+Demonstração pública:
+
+https://triador-aiia.vercel.app
+
+---
+
+## Endpoints
+
+### POST /analyses
+
+Request:
 
 ```json
 {
-  "resume": "Texto do currículo",
-  "job_description": "Texto da vaga"
+  "resume":"Texto currículo",
+  "job_description":"Texto vaga"
 }
 ```
 
-Resposta:
+Response:
 
 ```json
 {
-  "id": 1,
-  "candidate_name": "Nome do candidato",
-  "skills": ["Java", "Spring Boot"],
-  "years_experience": 2,
-  "fit_score": 85,
-  "summary": "Resumo justificando a nota."
+  "id":1,
+  "candidate_name":"Nome",
+  "skills":["Java","Spring Boot"],
+  "years_experience":2,
+  "fit_score":85,
+  "summary":"Resumo justificando a pontuação."
 }
-```
-
-### Listar histórico
-
-```txt
-GET /analyses
 ```
 
 ---
 
-## Validações e tratamento de erro
+### GET /analyses
 
-O backend implementa:
+Lista histórico.
 
-- Validação de campos obrigatórios no request
+---
+
+## Validações
+
+Backend implementa:
+
+- Validação de request
 - Sanitização da resposta da LLM
-- Conversão da resposta do modelo para struct interna
-- Validação de campos obrigatórios da resposta da LLM
-- Validação de `fit_score` entre 0 e 100
-- Validação de experiência não negativa
-- Tratamento de erro para falha do provedor LLM
-- Tratamento de resposta inválida da LLM
-- CORS configurado para o frontend local
+- Conversão para struct interna
+- Validação de campos obrigatórios
+- Validação do score entre 0–100
+- Validação de experiência
+- Tratamento de erro do provedor
+- Tratamento de JSON inválido
+- CORS configurado por ambiente
 
 ---
 
-## Variáveis de ambiente
-
-### Backend
-
-```env
-DATABASE_URL=host=localhost user=postgres password=postgres dbname=triador port=5432 sslmode=disable
-OPENAI_API_KEY=sua_chave_openai
-OPENAI_MODEL=gpt-4o-mini
-```
-
-### Frontend
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8080
-```
-
----
-
-## Testes e validação local
-
-Comandos utilizados durante o desenvolvimento:
+## Testes
 
 ### Backend
 
 ```bash
 go fmt ./...
+
 go test ./...
 ```
+
+Testes implementados:
+
+- Sanitização de respostas da LLM
+- Remoção de blocos markdown
+- Preservação de JSON válido
+- Validação do comportamento esperado do núcleo de tratamento da IA
 
 ### Frontend
 
 ```bash
 npm run lint
+
 npm run build
 ```
 
@@ -324,22 +335,21 @@ npm run build
 
 - Não há autenticação
 - Não há upload de PDF
-- Não há deploy público configurado
 - Não há streaming da resposta da IA
-- Testes automatizados ainda não foram adicionados
-- O prompt pode ser refinado em versões futuras conforme novos cenários de avaliação
+- Skills não são normalizadas
+- Não há paginação no histórico'
 
 ---
 
-## Possíveis melhorias futuras
+## Melhorias futuras
 
-- Upload de PDF com extração de texto
-- Testes automatizados para validação da saída da LLM
-- Retry com backoff para rate limit do provedor
-- Deploy do backend e frontend
-- Análise de múltiplas vagas em uma única requisição
-- Separação entre skills encontradas e skills ausentes
-- Melhorias visuais no histórico e no score
+- Upload de PDF
+- Retry com backoff para rate limit
+- Normalização de skills
+- Paginação
+- Comparação múltipla de vagas
+- Melhorias visuais adicionais
+- Separação entre skills encontradas e ausentes
 
 ---
 
