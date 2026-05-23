@@ -54,7 +54,6 @@ export default function Home() {
 
   useEffect(() => {
   if (!result) {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     return;
   }
 
@@ -104,14 +103,26 @@ export default function Home() {
       await loadHistory();
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : "Erro inesperado ao analisar currículo."
+       error instanceof Error
+        ? getFriendlyErrorMessage(error.message)
+        : "Erro inesperado ao analisar currículo."
       );
     } finally {
       setLoading(false);
     }
   }
+
+  function getFriendlyErrorMessage(message: string) {
+  if (message.includes("llm provider failed")) {
+    return "Não foi possível concluir a análise com IA no momento. Verifique a chave da API ou tente novamente em alguns instantes.";
+  }
+
+  if (message.includes("invalid llm output")) {
+    return "A IA retornou uma resposta fora do formato esperado. Tente reenviar a análise.";
+  }
+
+  return message;
+}
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
