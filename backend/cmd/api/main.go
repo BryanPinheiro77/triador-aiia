@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -62,9 +63,14 @@ func main() {
 		})
 	})
 
-	log.Println("Server running on port 8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	err = router.Run(":8080")
+	log.Println("Server running on port " + port)
+
+	err = router.Run(":" + port)
 	if err != nil {
 		log.Fatal(err)
 	}
