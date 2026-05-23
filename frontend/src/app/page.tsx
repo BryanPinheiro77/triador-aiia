@@ -17,10 +17,12 @@ export default function Home() {
   const [resume, setResume] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState<Analysis | null>(null);
+  const [animatedScore, setAnimatedScore] = useState(0);
   const [history, setHistory] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState("");
+
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -50,11 +52,25 @@ export default function Home() {
     void loadHistory();
   }, [loadHistory]);
 
+  useEffect(() => {
+  if (!result) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    setAnimatedScore(result.fit_score);
+  }, 100);
+
+  return () => clearTimeout(timeout);
+}, [result]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
     setResult(null);
+    setAnimatedScore(0);
 
     if (!resume.trim() || !jobDescription.trim()) {
       setError("Preencha o currículo e a descrição da vaga.");
@@ -168,8 +184,20 @@ export default function Home() {
               disabled={loading}
               className="w-full rounded-xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
             >
-              {loading ? "Analisando..." : "Analisar currículo"}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Analisando com IA...
+                </span>
+              ) : (
+               "Analisar currículo"
+            )}
             </button>
+            {loading && (
+              <p className="text-center text-sm text-slate-400">
+                A IA está comparando o currículo com a vaga. Isso pode levar alguns segundos.
+               </p>
+            )}
           </form>
 
           <aside className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl">
@@ -202,9 +230,9 @@ export default function Home() {
 
   <div className="mt-3 h-3 w-full rounded-full bg-slate-800">
     <div
-      className="h-3 rounded-full rounded-full bg-blue-500 transition-all duration-500"
+      className="h-3 rounded-full bg-blue-500 transition-all duration-700 ease-out"
       style={{
-        width: `${result.fit_score}%`,
+        width: `${animatedScore}%`,
       }}
     />
   </div>
