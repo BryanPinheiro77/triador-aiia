@@ -129,8 +129,10 @@ Expected JSON format:
 
 Rules:
 - fit_score must be between 0 and 100.
-- years_experience must be an approximate integer.
-- summary must be short and justify the score.
+- years_experience must be an approximate integer based only on explicit or strongly implied professional experience from the resume. If experience is unclear, return 0.
+- summary must be short, justify the score and always be written in Portuguese (Brazil).
+- skills must include only technical skills found in the resume.
+- Do not infer experience time only from education, academic projects or general knowledge.
 - If the candidate name is not clear, use "Unknown candidate".
 
 Resume:
